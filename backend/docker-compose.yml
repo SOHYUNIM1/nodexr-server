@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: nodexr-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  minio:
+    image: minio/minio
+    container_name: nodexr-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  backend:
+    container_name: nodexr-backend
+    image: nodexr-backend
+    depends_on:
+      - postgres
+      - minio
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+
+
+volumes:
+  pgdata:
+  minio_data:
