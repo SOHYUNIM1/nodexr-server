@@ -37,11 +37,11 @@ app.add_middleware(
 # ===============================
 
 # 방 생성
-app.include_router(
-    rooms.router,
-    prefix="/rooms",
-    tags=["Rooms"],
-)
+#app.include_router(
+#    rooms.router,
+#    prefix="/rooms",
+#    tags=["Rooms"],
+#)
 
 # 발화 (STT 종료)
 app.include_router(
@@ -51,32 +51,32 @@ app.include_router(
 )
 
 # 노드 선택
-app.include_router(
-    node.router,
-    prefix="/node",
-    tags=["Node"],
-)
+#app.include_router(
+#    node.router,
+#    prefix="/node",
+#    tags=["Node"],
+#)
 
 # 그래프
-app.include_router(
-    graph.router,
-    prefix="/graph",
-    tags=["Graph"],
-)
+#app.include_router(
+#    graph.router,
+#    prefix="/graph",
+#    tags=["Graph"],
+#)
 
 # 2D 이미지 생성
-app.include_router(
-    generate_2d.router,
-    prefix="/2d",
-    tags=["2D Generation"],
-)
+#app.include_router(
+#    generate_2d.router,
+#    prefix="/2d",
+#    tags=["2D Generation"],
+#)
 
 # 3D 이미지 생성
-app.include_router(
-    generate_3d.router,
-    prefix="/3d",
-    tags=["3D Generation"],
-)
+#app.include_router(
+#    generate_3d.router,
+#    prefix="/3d",
+#    tags=["3D Generation"],
+#)
 
 # ===============================
 # Health Check

@@ -6,5 +6,7 @@ pydantic
 python-dotenv
 minio
 requests
-openai
+openai>=1.0.0
 python-multipart
+httpx
+pydantic-settings>=2.0
