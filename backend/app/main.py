@@ -50,11 +50,11 @@ app.include_router(
 )
 
 # 그래프
-#app.include_router(
-#    graph.router,
-#    prefix="/graph",
-#    tags=["Graph"],
-#)
+app.include_router(
+    graph.router,
+    prefix="/graph",
+    tags=["Graph"],
+)
 
 # 2D 이미지 생성
 #app.include_router(
