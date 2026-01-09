@@ -1,10 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI 
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import (
     rooms,
     utterances,
-    node,
     graph,
     generate_2d,
     generate_3d,
@@ -49,13 +48,6 @@ app.include_router(
     prefix="/utterances",
     tags=["Utterances"],
 )
-
-# 노드 선택
-#app.include_router(
-#    node.router,
-#    prefix="/node",
-#    tags=["Node"],
-#)
 
 # 그래프
 #app.include_router(
