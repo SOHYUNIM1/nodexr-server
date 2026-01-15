@@ -1,13 +1,6 @@
 from fastapi import FastAPI 
 from fastapi.middleware.cors import CORSMiddleware
-
-from app.api import (
-    rooms,
-    utterances,
-    graph,
-    generate_2d,
-    generate_3d,
-)
+from app.api.rooms import router as room_router
 
 # ===============================
 # FastAPI App
@@ -31,49 +24,4 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ===============================
-# Routers
-# ===============================
-
-# 방 생성
-#app.include_router(
-#    rooms.router,
-#    prefix="/rooms",
-#    tags=["Rooms"],
-#)
-
-# 발화 (STT 종료)
-app.include_router(
-    utterances.router,
-    prefix="/utterances",
-    tags=["Utterances"],
-)
-
-# 그래프
-app.include_router(
-    graph.router,
-    prefix="/graph",
-    tags=["Graph"],
-)
-
-# 2D 이미지 생성
-#app.include_router(
-#    generate_2d.router,
-#    prefix="/2d",
-#    tags=["2D Generation"],
-#)
-
-# 3D 이미지 생성
-#app.include_router(
-#    generate_3d.router,
-#    prefix="/3d",
-#    tags=["3D Generation"],
-#)
-
-# ===============================
-# Health Check
-# ===============================
-
-@app.get("/")
-async def root():
-    return {"status": "NodeXR backend alive"}
+app.include_router(room_router)
