@@ -1,6 +1,8 @@
 from fastapi import FastAPI 
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.rooms import router as room_router
+from app.api.ws import router as ws_router
+from app.api.utterances import router as utter_router
 
 # ===============================
 # FastAPI App
@@ -25,3 +27,5 @@ app.add_middleware(
 )
 
 app.include_router(room_router)
+app.include_router(ws_router)
+app.include_router(utter_router)
