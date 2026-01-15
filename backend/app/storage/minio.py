@@ -1,22 +1,21 @@
-import os
-import time
 from minio import Minio
+from app.core.config import settings
 
-MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "localhost:9000")
-MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY")
-MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY")
-MINIO_BUCKET = os.getenv("MINIO_BUCKET")
-
-client = Minio(
-    MINIO_ENDPOINT,
-    access_key=MINIO_ACCESS_KEY,
-    secret_key=MINIO_SECRET_KEY,
-    secure=False,
+# =================================================
+# MinIO Client
+# =================================================
+minio_client = Minio(
+    settings.MINIO_ENDPOINT,
+    access_key=settings.MINIO_ACCESS_KEY,
+    secret_key=settings.MINIO_SECRET_KEY,
+    secure=settings.MINIO_SECURE,
 )
 
-def ensure_bucket():
-    if not MINIO_BUCKET:
-        raise RuntimeError("MINIO_BUCKET env not set")
+# =================================================
+# Bucket Initialization
+# =================================================
+def ensure_bucket() -> None:
+    bucket_name = settings.MINIO_BUCKET
 
-    if not client.bucket_exists(MINIO_BUCKET):
-        client.make_bucket(MINIO_BUCKET)
+    if not minio_client.bucket_exists(bucket_name):
+        minio_client.make_bucket(bucket_name)
