@@ -16,10 +16,6 @@ __pycache__/
 pgdata/
 minio_data/
 
-############################
-# FastAPI uploads / local files
-############################
-app/storage/
 
 ############################
 # Test / cache
