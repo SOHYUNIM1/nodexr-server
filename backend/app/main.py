@@ -1,5 +1,6 @@
 from fastapi import FastAPI 
 from fastapi.middleware.cors import CORSMiddleware
+from app.storage.minio import ensure_bucket
 from app.api.rooms import router as room_router
 from app.api.ws import router as ws_router
 from app.api.utterances import router as utter_router
@@ -25,6 +26,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+def startup():
+    ensure_bucket()
+
 
 app.include_router(room_router)
 app.include_router(ws_router)

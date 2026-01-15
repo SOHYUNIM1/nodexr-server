@@ -1,6 +1,9 @@
 from typing import Dict, Set
 from uuid import UUID
 from fastapi import WebSocket
+import logging
+
+logger = logging.getLogger(__name__)
 
 class WSRoomManager:
     def __init__(self):
@@ -18,6 +21,10 @@ class WSRoomManager:
 
     async def broadcast(self, room_id: UUID, payload: dict):
         conns = list(self._conns.get(room_id, set()))
+        logger.info(
+            f"[WS:BROADCAST] room={room_id} "
+            f"connections={len(conns)} "
+        )
         for ws in conns:
             try:
                 await ws.send_json(payload)

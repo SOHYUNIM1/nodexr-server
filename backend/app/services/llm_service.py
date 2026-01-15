@@ -1,13 +1,13 @@
 import json
 from pathlib import Path
 from typing import List, Tuple
-
 from openai import OpenAI
-
+import os
+from pathlib import Path
 from app.core.config import settings
 
-
-PROMPT_DIR = Path(__file__).parent / "prompts"
+PROJECT_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parent.parent  # nodexr-server 폴더 기준
+PROMPT_DIR = PROJECT_DIR / "app/core/llm/prompts"  # 프롬프트 파일 경로
 
 
 def load_prompt(filename: str) -> str:
@@ -23,6 +23,7 @@ class LLMService:
         self.category_prompt_tpl = load_prompt("category_discuss.txt")
 
     def _call_openai(self, prompt: str) -> dict:
+        print("_call_openai 호출")
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[
@@ -35,6 +36,7 @@ class LLMService:
         content = response.choices[0].message.content
 
         try:
+            print("openai 응답", content)
             return json.loads(content)
         except json.JSONDecodeError:
             raise ValueError(f"OpenAI 응답 JSON 파싱 실패:\n{content}")

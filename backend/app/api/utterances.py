@@ -1,4 +1,3 @@
-import asyncio
 from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -22,6 +21,8 @@ from app.db.models.graph_snapshot import GraphSnapshot
 from app.services.llm_service import llm_service
 from app.services.image_service import image_service
 from app.services.graph_builder import build_graph_state
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/utterances", tags=["Utterances"])
 
@@ -44,7 +45,13 @@ def create_utterance(req: UtteranceCreate, bg: BackgroundTasks, db: Session = De
     db.refresh(utt)
 
     # 2) phase에 따라 후처리 (LLM/이미지/그래프)
-    bg.add_task(_process_phase_pipeline, req.room_id, req.phase, req.text, req.img_url)
+    bg.add_task(
+        _process_phase_pipeline,
+        req.room_id,
+        req.phase,
+        req.text,
+        req.img_url
+    )
 
     return ApiResponse(
         code=UtteranceCode.UTT_SAVED,
@@ -53,21 +60,16 @@ def create_utterance(req: UtteranceCreate, bg: BackgroundTasks, db: Session = De
     )
 
 
-def _process_phase_pipeline(room_id: UUID, phase: PhaseType, text: str, img_url: str | None):
-    """
-    BackgroundTasks는 sync 함수도 가능.
-    내부에서 필요하면 asyncio.run 안 쓰고, WS broadcast는 별도 루프로 처리해야 하는데
-    FastAPI는 bg task에서 async 호출이 가능하니 여기서는 이벤트 루프에 태워 보내는 방식 사용.
-    """
-    # WS broadcast를 sync에서 호출하려면 loop로 넘겨야 함
-    loop = asyncio.get_event_loop()
-    loop.create_task(_async_phase_pipeline(room_id, phase, text, img_url))
+async def _process_phase_pipeline(room_id: UUID, phase: PhaseType, text: str, img_url: str | None):
+    logger.info(f"[PIPELINE START] _process_phase_pipeline room={room_id}, phase={phase}")
+    await _async_phase_pipeline(room_id, phase, text, img_url)
 
 
 async def _async_phase_pipeline(room_id: UUID, phase: PhaseType, text: str, img_url: str | None):
     """
     3) BASIC_DISCUSS / CATEGORY_DISCUSS 흐름 구현
     """
+    logger.info(f"[PIPELINE START] _async_phase_pipeline room={room_id}, phase={phase}")
     from app.db.session import SessionLocal  # 순환 import 방지용
     db = SessionLocal()
     try:
@@ -89,6 +91,8 @@ async def _async_phase_pipeline(room_id: UUID, phase: PhaseType, text: str, img_
 
 
 async def _pipeline_basic_discuss(db: Session, room_id: UUID, room_topic: str, text: str):
+    logger.info(f"[PIPELINE START] _pipeline_basic_discuss")
+    
     # 3-1) LLM: 루트 라벨 + 카테고리들 + 스케치 프롬프트
     root_label, categories, sketch_prompt = llm_service.basic_discuss(room_topic, text)
 
@@ -118,6 +122,9 @@ async def _pipeline_basic_discuss(db: Session, room_id: UUID, room_topic: str, t
     )
     db.add(root_detail)
     db.flush()
+    
+    logger.info(f"DB update 완료 - nodes, categories, category_details")
+    
 
     # 3-5) (루트 노드만 있는 graph_state) WS 전송
     state_1 = {
@@ -135,9 +142,10 @@ async def _pipeline_basic_discuss(db: Session, room_id: UUID, room_topic: str, t
         "core_img_url": None,
         "graph_state": _stringify_uuids(state_1)
     })
+    logger.info(f"NODE_KEYWORD_UPDATE ws 전송")
 
-    # 3-6) NanoBanana: 이미지 후보군 3개 생성 (더미)
-    urls = image_service.generate_images(sketch_prompt, n=3)
+    # 3-6) NanoBanana: 이미지 후보군 3개 생성
+    urls = await image_service.generate_images(sketch_prompt, n=3)
 
     # 3-7~10) ASSET 노드 3개 + assets insert + edges insert
     asset_nodes = []
@@ -160,15 +168,18 @@ async def _pipeline_basic_discuss(db: Session, room_id: UUID, room_topic: str, t
         asset_nodes.append(n)
 
     db.flush()
+    logger.info(f"DB update 완료 - nodes, edges, assets")
 
     # 3-11) graph_snapshot 저장 (DB에서 구성한 그래프를 snapshot으로 박제)
     graph_state = build_graph_state(db, None, room_id)
+    graph_state = _stringify_uuids(graph_state)
     snap = GraphSnapshot(room_id=room_id, graph_state=graph_state)
     db.add(snap)
     db.flush()
 
     # snapshot_id 주입해서 다시 저장(원하면)
     graph_state2 = build_graph_state(db, snap.graph_snapshot_id, room_id)
+    graph_state2 = _stringify_uuids(graph_state2)
     snap.graph_state = graph_state2
     db.flush()
 
@@ -178,6 +189,8 @@ async def _pipeline_basic_discuss(db: Session, room_id: UUID, room_topic: str, t
         "core_img_url": None,
         "graph_state": _stringify_uuids(graph_state2)
     })
+    logger.info(f"NODE_IMAGE_UPDATE ws 전송")
+    logger.info(f"graph state :{_stringify_uuids(graph_state2)}")
 
 
 async def _pipeline_category_discuss(db: Session, room_id: UUID, text: str):
@@ -242,9 +255,10 @@ async def _pipeline_category_discuss(db: Session, room_id: UUID, text: str):
     # -------------------------------------------------
     # 7. 카테고리 이미지 생성 (의미 분리된 함수)
     # -------------------------------------------------
-    img_urls = image_service.generate_category_images(
+    img_urls = await image_service.generate_category_images(
         prompt=prompt,
-        n=3
+        n=3,
+        room_id=room_id
     )
 
     # -------------------------------------------------
