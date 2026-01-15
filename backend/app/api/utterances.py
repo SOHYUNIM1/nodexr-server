@@ -49,8 +49,7 @@ def create_utterance(req: UtteranceCreate, bg: BackgroundTasks, db: Session = De
         _process_phase_pipeline,
         req.room_id,
         req.phase,
-        req.text,
-        req.img_url
+        req.text
     )
 
     return ApiResponse(
@@ -60,12 +59,12 @@ def create_utterance(req: UtteranceCreate, bg: BackgroundTasks, db: Session = De
     )
 
 
-async def _process_phase_pipeline(room_id: UUID, phase: PhaseType, text: str, img_url: str | None):
+async def _process_phase_pipeline(room_id: UUID, phase: PhaseType, text: str):
     logger.info(f"[PIPELINE START] _process_phase_pipeline room={room_id}, phase={phase}")
-    await _async_phase_pipeline(room_id, phase, text, img_url)
+    await _async_phase_pipeline(room_id, phase, text)
 
 
-async def _async_phase_pipeline(room_id: UUID, phase: PhaseType, text: str, img_url: str | None):
+async def _async_phase_pipeline(room_id: UUID, phase: PhaseType, text: str):
     """
     3) BASIC_DISCUSS / CATEGORY_DISCUSS 흐름 구현
     """
@@ -194,12 +193,14 @@ async def _pipeline_basic_discuss(db: Session, room_id: UUID, room_topic: str, t
 
 
 async def _pipeline_category_discuss(db: Session, room_id: UUID, text: str):
+    logger.info(f"_pipeline_category_discuss")
     # -------------------------------------------------
     # 1. 현재 ACTIVE 카테고리 조회
     # -------------------------------------------------
     active = _get_active_category(db, room_id)
     if not active:
         return
+    logger.info(f"ACTIVE 카테고리 조회")
 
     # -------------------------------------------------
     # 2. LLM 호출 (카테고리 발화)
@@ -208,7 +209,8 @@ async def _pipeline_category_discuss(db: Session, room_id: UUID, text: str):
         active.category_name,
         text
     )
-
+    logger.info(f"llm 호출 완료 - {keyword}, {prompt}")
+    
     # -------------------------------------------------
     # 3. CATEGORY 노드 생성
     # -------------------------------------------------
@@ -235,6 +237,8 @@ async def _pipeline_category_discuss(db: Session, room_id: UUID, text: str):
     )
     db.add(detail)
     db.flush()
+    
+    logger.info(f"DB update 완료 - categories, category_details")
 
     # -------------------------------------------------
     # 6. 노드 키워드 업데이트 WS 전송
@@ -251,11 +255,14 @@ async def _pipeline_category_discuss(db: Session, room_id: UUID, text: str):
         "core_img_url": None,
         "graph_state": _stringify_uuids(graph_state_partial)
     })
+    logger.info(f"NODE_KEYWORD_UPDATE ws 전송")
 
     # -------------------------------------------------
     # 7. 카테고리 이미지 생성 (의미 분리된 함수)
     # -------------------------------------------------
+    logger.info(f"나노바나나 호출")
     img_urls = await image_service.generate_category_images(
+        db,
         prompt=prompt,
         n=3,
         room_id=room_id
@@ -296,6 +303,7 @@ async def _pipeline_category_discuss(db: Session, room_id: UUID, text: str):
         graph_snapshot_id=None,
         room_id=room_id
     )
+    graph_state = _stringify_uuids(graph_state)
 
     snapshot = GraphSnapshot(
         room_id=room_id,
@@ -310,8 +318,11 @@ async def _pipeline_category_discuss(db: Session, room_id: UUID, text: str):
         graph_snapshot_id=snapshot.graph_snapshot_id,
         room_id=room_id
     )
+    graph_state_with_id = _stringify_uuids(graph_state_with_id)
     snapshot.graph_state = graph_state_with_id
     db.flush()
+    
+    logger.info(f"DB 업데이트 완료 - nodes, edges, assets, graph_snapshots")
 
     # -------------------------------------------------
     # 10. 이미지 노드 포함 graph_state WS 전송
@@ -321,6 +332,7 @@ async def _pipeline_category_discuss(db: Session, room_id: UUID, text: str):
         "core_img_url": None,
         "graph_state": _stringify_uuids(graph_state_with_id)
     })
+    logger.info(f"NODE_IMAGE_UPDATE ws 전송")
 
 def _stringify_uuids(obj):
     """

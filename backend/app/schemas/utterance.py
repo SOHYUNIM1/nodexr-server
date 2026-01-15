@@ -12,4 +12,3 @@ class UtteranceCreate(BaseModel):
     user_id: UUID
     phase: PhaseType
     text: str
-    img_url: Optional[str] = None

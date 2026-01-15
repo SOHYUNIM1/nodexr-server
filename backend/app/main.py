@@ -4,6 +4,7 @@ from app.storage.minio import ensure_bucket
 from app.api.rooms import router as room_router
 from app.api.ws import router as ws_router
 from app.api.utterances import router as utter_router
+from app.api.select_2d import router as select_2d_router
 
 # ===============================
 # FastAPI App
@@ -35,3 +36,4 @@ def startup():
 app.include_router(room_router)
 app.include_router(ws_router)
 app.include_router(utter_router)
+app.include_router(select_2d_router)

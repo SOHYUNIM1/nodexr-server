@@ -10,6 +10,9 @@ class RoomCode(str, Enum):
 
 class UtteranceCode(str, Enum):
     UTT_SAVED = "UTT200"
+    
+class Select2DCode:
+    SELECT_2D = "2D200"
 
 
 ROOM_MESSAGE = {
@@ -22,4 +25,8 @@ ROOM_MESSAGE = {
 
 UTTERANCE_MESSAGE = {
     UtteranceCode.UTT_SAVED : "발화 저장 성공"
+}
+
+SELECT_2D_MESSAGE = {
+    Select2DCode.SELECT_2D: "2D 코어 이미지 선택 성공"
 }
