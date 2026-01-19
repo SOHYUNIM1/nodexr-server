@@ -14,6 +14,10 @@ class UtteranceCode(str, Enum):
 class Select2DCode:
     SELECT_2D = "2D200"
 
+class CategoryCode:
+    CAT_LIST_OK = "CAT200"
+    CAT_SELECT = "CAT201"
+    
 
 ROOM_MESSAGE = {
     RoomCode.ROOM_CREATED: "회의실 생성 성공",
@@ -29,4 +33,9 @@ UTTERANCE_MESSAGE = {
 
 SELECT_2D_MESSAGE = {
     Select2DCode.SELECT_2D: "2D 코어 이미지 선택 성공"
+}
+
+CATEGORY_MESSAGE = {
+    CategoryCode.CAT_LIST_OK: "카테고리 목록 조회 성공",
+    CategoryCode.CAT_SELECT: "카테고리 선택 성공"
 }
