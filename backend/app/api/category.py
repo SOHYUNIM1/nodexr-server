@@ -47,13 +47,13 @@ def select_categories(
 
     pre_category = db.query(Category).filter(
         Category.room_id == req.room_id,
-        Category.phase == True
+        Category.phase == "ACTIVE"
     ).first()
 
     if pre_category:
-        pre_category.phase = False
+        pre_category.phase = "INACTIVE"
 
-    curr_category.phase = True
+    curr_category.phase = "ACTIVE"
 
     db.commit()
 
