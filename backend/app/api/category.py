@@ -2,10 +2,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from backend.app.core.codes import CategoryCode, CATEGORY_MESSAGE
-from backend.app.db.models.category import Category
-from backend.app.schemas.category import CategoryListResp, CategorySelectReq
-from backend.app.schemas.response import ApiResponse
+from app.core.codes import CategoryCode, CATEGORY_MESSAGE
+from app.db.models.category import Category
+from app.schemas.category import CategoryListResp, CategorySelectReq
+from app.schemas.response import ApiResponse
 
 router = APIRouter(prefix="/api/categories", tags=["Categories"])
 
