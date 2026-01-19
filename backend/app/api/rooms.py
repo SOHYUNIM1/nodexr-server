@@ -40,7 +40,7 @@ def generate_room(req: RoomCreate, db: Session = Depends(get_db)):
             "room_id": room.room_id,
             "room_topic": room.room_topic,
             "password": room.password,
-            "leader": True
+            "leader": req.nickname
         }
     )
 

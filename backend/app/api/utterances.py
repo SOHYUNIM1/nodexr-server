@@ -218,8 +218,25 @@ async def _pipeline_category_discuss(db: Session, room_id: UUID, text: str):
         room_id=room_id,
         node_type="CATEGORY"
     )
+
     db.add(category_node)
     db.flush()
+
+    core_asset_node = db.query(Node).join(
+        Asset, Asset.node_id == Node.node_id
+    ).filter(
+        Node.room_id == room_id,
+        Node.node_type == "ASSET",
+        Asset.type == "CURR_2D_CORE"
+    ).first()
+
+    edge = Edge(
+        from_node_id=core_asset_node.node_id,
+        to_node_id=category_node.node_id
+    )
+
+    db.add(edge)
+    db.commit()
 
     # -------------------------------------------------
     # 4. 전역 CATEGORY order 계산 (room 기준)
