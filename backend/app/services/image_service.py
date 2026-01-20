@@ -1,7 +1,6 @@
 import io
 import logging
 import asyncio
-import requests
 from uuid import UUID
 from typing import List
 from io import BytesIO
@@ -13,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.node import Node
 from app.db.models.asset import Asset
-from app.storage.minio import upload_image_bytes
+from app.storage.minio import upload_image_bytes, get_object_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -32,27 +31,34 @@ class ImageService:
         db: Session | None = None,
         node_id: UUID | None = None,
     ) -> List[str]:
-        logger.info(f"[IMAGE_GEN] BASIC {n}개 생성 시작")
+        logger.info(f"[IMAGE][START] BASIC image generation (n={n})")
+        logger.info(f"[IMAGE][STEP 0] Prompt: {prompt}")
 
-        tasks = [self._generate_single_image(prompt) for _ in range(n)]
+        tasks = [self._generate_single_image(prompt, idx=i) for i in range(n)]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         urls: List[str] = []
-        for res in results:
+        for idx, res in enumerate(results):
             if isinstance(res, str) and res:
+                logger.info(f"[IMAGE][STEP 3] Image #{idx} generated successfully")
                 urls.append(res)
+
                 if db and node_id:
                     self._save_asset_to_db(db, node_id, res, "2D_ROOT_CANDIDATE")
             else:
-                logger.error(f"[IMAGE_GEN_FAIL] {res}")
+                logger.error(f"[IMAGE][FAIL] Image #{idx} generation failed: {res}")
 
         if db:
             db.commit()
+            logger.info("[IMAGE][DB] Assets committed")
 
+        logger.info("[IMAGE][END] BASIC image generation finished")
         return urls
 
-    async def _generate_single_image(self, prompt: str) -> str:
+    async def _generate_single_image(self, prompt: str, idx: int = 0) -> str:
         try:
+            logger.info(f"[IMAGE][STEP 1] Request Gemini image #{idx}")
+
             response = self.client.models.generate_content(
                 model="gemini-2.5-flash-image",
                 contents=[prompt],
@@ -64,10 +70,12 @@ class ImageService:
 
             part = response.candidates[0].content.parts[0]
             image = Image.open(BytesIO(part.inline_data.data))
-            return self._save_image_to_minio(image)
+
+            logger.info(f"[IMAGE][STEP 2] Gemini image #{idx} received")
+            return self._save_image_to_minio(image, idx)
 
         except Exception as e:
-            logger.error(f"[SINGLE_GEN_FAIL] {e}")
+            logger.error(f"[IMAGE][FAIL] SINGLE_GEN #{idx}: {e}")
             return ""
 
     # =========================================================
@@ -80,73 +88,77 @@ class ImageService:
         n: int,
         room_id: UUID,
     ) -> List[str]:
+        logger.info("[IMAGE][START] CATEGORY image generation")
+        logger.info(f"[IMAGE][STEP 0] room_id={room_id}, n={n}")
+        logger.info(f"[IMAGE][STEP 0] Prompt: {prompt}")
+
         core_image = self._load_core_image(db, room_id)
         if not core_image:
-            logger.warning("[CATEGORY_IMAGE] CORE 이미지 없음")
+            logger.warning("[IMAGE][STOP] CORE image not found")
             return []
 
-        logger.info(f"[CATEGORY_IMAGE] CORE 기반 {n}개 생성 시작")
-
         tasks = [
-            self._generate_single_category_image(prompt, core_image)
-            for _ in range(n)
+            self._generate_single_category_image(prompt, core_image, idx=i)
+            for i in range(n)
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         urls: List[str] = []
-        for res in results:
+        for idx, res in enumerate(results):
             if isinstance(res, str) and res:
+                logger.info(f"[IMAGE][STEP 3] Category image #{idx} generated")
                 urls.append(res)
             else:
-                logger.error(f"[CATEGORY_SINGLE_FAIL] {res}")
+                logger.error(f"[IMAGE][FAIL] Category image #{idx}: {res}")
 
+        logger.info("[IMAGE][END] CATEGORY image generation finished")
         return urls
 
     async def _generate_single_category_image(
         self,
         prompt: str,
-        core_image: Image.Image
+        core_image: Image.Image,
+        idx: int = 0,
     ) -> str:
         try:
-            # ✅ PIL Image → bytes 변환
+            logger.info(f"[IMAGE][STEP 1] Request Gemini category image #{idx}")
+
             buf = BytesIO()
             core_image.save(buf, format="PNG")
             buf.seek(0)
 
             image_part = types.Part.from_bytes(
                 data=buf.read(),
-                mime_type="image/png"
+                mime_type="image/png",
             )
 
             response = self.client.models.generate_content(
                 model="gemini-2.5-flash-image",
-                contents=[
-                    prompt,
-                    image_part
-                ],
+                contents=[prompt, image_part],
                 config=types.GenerateContentConfig(
                     candidate_count=1,
-                    response_modalities=["IMAGE"]
-                )
+                    response_modalities=["IMAGE"],
+                ),
             )
 
-            if response.candidates:
-                for part in response.candidates[0].content.parts:
-                    if part.inline_data:
-                        image = Image.open(BytesIO(part.inline_data.data))
-                        return self._save_image_to_minio(image)
+            for part in response.candidates[0].content.parts:
+                if part.inline_data:
+                    image = Image.open(BytesIO(part.inline_data.data))
+                    logger.info(f"[IMAGE][STEP 2] Category image #{idx} received")
+                    return self._save_image_to_minio(image, idx)
 
             return ""
 
         except Exception as e:
-            logger.error(f"[SINGLE_CATEGORY_FAIL] {e}")
+            logger.error(f"[IMAGE][FAIL] SINGLE_CATEGORY #{idx}: {e}")
             return ""
-
 
     # =========================================================
     # CORE IMAGE LOAD (MinIO → bytes → PIL)
     # =========================================================
     def _load_core_image(self, db: Session, room_id: UUID) -> Image.Image | None:
+        logger.info("[IMAGE][CORE] Load core image from DB/MinIO")
+
         asset = (
             db.query(Asset)
             .join(Node, Asset.node_id == Node.node_id)
@@ -156,24 +168,32 @@ class ImageService:
         )
 
         if not asset:
+            logger.warning("[IMAGE][CORE] No core image asset found")
             return None
 
         try:
-            resp = requests.get(asset.img_url, timeout=10)
-            resp.raise_for_status()
-            return Image.open(BytesIO(resp.content))
+            data = get_object_bytes(asset.img_url)
+            logger.info("[IMAGE][CORE] Core image loaded from MinIO")
+            return Image.open(BytesIO(data))
+
         except Exception as e:
-            logger.error(f"[CORE_IMAGE_LOAD_FAIL] {e}")
+            logger.error(f"[IMAGE][CORE_FAIL] {e}")
             return None
 
     # =========================================================
     # MinIO + DB
     # =========================================================
-    def _save_image_to_minio(self, image: Image.Image) -> str:
+    def _save_image_to_minio(self, image: Image.Image, idx: int = 0) -> str:
+        logger.info(f"[IMAGE][STEP 2] Upload image #{idx} to MinIO")
+
         buf = BytesIO()
         image.save(buf, format="PNG")
         buf.seek(0)
-        return upload_image_bytes(buf)
+
+        url = upload_image_bytes(buf)
+        logger.info(f"[IMAGE][STEP 2] Uploaded image #{idx} → {url}")
+
+        return url
 
     def _save_asset_to_db(
         self,
@@ -182,6 +202,7 @@ class ImageService:
         url: str,
         asset_type: str,
     ):
+        logger.info(f"[IMAGE][DB] Save asset (type={asset_type})")
         db.add(
             Asset(
                 node_id=node_id,
@@ -189,6 +210,3 @@ class ImageService:
                 type=asset_type,
             )
         )
-
-
-image_service = ImageService()

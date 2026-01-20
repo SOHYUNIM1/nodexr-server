@@ -19,7 +19,7 @@ from app.db.models.edge import Edge
 from app.db.models.graph_snapshot import GraphSnapshot
 
 from app.services.llm_service import llm_service
-from app.services.image_service import image_service
+from app.services.image_service import ImageService as image_service
 from app.services.graph_builder import build_graph_state
 import logging
 logger = logging.getLogger(__name__)

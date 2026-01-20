@@ -2,6 +2,7 @@ from minio import Minio
 from io import BytesIO
 import uuid
 from app.core.config import settings
+from datetime import timedelta
 
 # =================================================
 # MinIO Client
@@ -44,3 +45,33 @@ def upload_image_bytes(img_byte_array: BytesIO) -> str:
     except Exception as err:
         print(f"Error uploading image to MinIO: {err}")
         return ""
+
+# app/storage/minio.py
+from urllib.parse import urlparse
+
+def get_object_bytes(img_url: str) -> bytes:
+    parsed = urlparse(img_url)
+    path = parsed.path.lstrip("/")
+    bucket, object_name = path.split("/", 1)
+
+    resp = minio_client.get_object(bucket, object_name)
+    data = resp.read()
+    resp.close()
+    resp.release_conn()
+    return data
+
+
+def generate_presigned_url(
+    bucket: str,
+    object_name: str,
+    expires_sec: int = 60 * 60,  # 1시간
+) -> str:
+    """
+    MinIO 객체에 대한 presigned GET URL 생성
+    Unity / 외부 접근용
+    """
+    return minio_client.presigned_get_object(
+        bucket_name=bucket,
+        object_name=object_name,
+        expires=timedelta(seconds=expires_sec),
+    )
