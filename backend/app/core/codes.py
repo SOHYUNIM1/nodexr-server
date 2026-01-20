@@ -17,6 +17,9 @@ class Select2DCode:
 class CategoryCode:
     CAT_LIST_OK = "CAT200"
     CAT_SELECT = "CAT201"
+
+class Generate3DCode:
+    GENERATE_3D_OK = "3D200"
     
 
 ROOM_MESSAGE = {
@@ -38,4 +41,8 @@ SELECT_2D_MESSAGE = {
 CATEGORY_MESSAGE = {
     CategoryCode.CAT_LIST_OK: "카테고리 목록 조회 성공",
     CategoryCode.CAT_SELECT: "카테고리 선택 성공"
+}
+
+GENERATE_3D_MESSAGE = {
+    Generate3DCode.GENERATE_3D_OK: "3D화 성공"
 }
