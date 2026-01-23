@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.node import Node
 from app.db.models.asset import Asset
-from app.storage.minio import upload_image_bytes, get_object_bytes
+from app.storage.minio import upload_generated_image, get_object_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -190,10 +190,11 @@ class ImageService:
         image.save(buf, format="PNG")
         buf.seek(0)
 
-        url = upload_image_bytes(buf)
-        logger.info(f"[IMAGE][STEP 2] Uploaded image #{idx} → {url}")
+        object_key = upload_generated_image(image_bytes=buf.getvalue())
+        logger.info(f"[IMAGE][STEP 2] Uploaded image #{idx} → {object_key}")
 
-        return url
+        # ❗ 절대 URL 아님
+        return object_key
 
     def _save_asset_to_db(
         self,

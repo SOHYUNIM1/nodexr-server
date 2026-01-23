@@ -4,6 +4,7 @@ from app.db.models.node import Node
 from app.db.models.edge import Edge
 from app.db.models.asset import Asset
 from app.db.models.category_detail import CategoryDetail
+from app.utils.asset_url import build_asset_url
 
 def build_graph_state(db: Session, graph_snapshot_id: UUID | None, room_id: UUID) -> dict:
     # CATEGORY 노드: CategoryDetail에서 label/order 구성
@@ -37,7 +38,7 @@ def build_graph_state(db: Session, graph_snapshot_id: UUID | None, room_id: UUID
             nodes_out.append({
                 "node_id": n.node_id,
                 "node_type": "ASSET",
-                "img_url": a.img_url if a else None,
+                "img_url": build_asset_url(a.img_url) if a else None,
                 "parent_category_id": parent_category_id,
             })
 
