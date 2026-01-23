@@ -210,3 +210,4 @@ class ImageService:
                 type=asset_type,
             )
         )
+image_service = ImageService()
