@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 from pydantic import BaseModel
 from uuid import UUID
 from typing import List, Union
@@ -18,7 +18,7 @@ RoomGenerateReq = Union[RoomCreate, RoomReenterReq]
 class RoomListDTO(BaseModel):
     room_id: UUID
     room_topic: str
-    created_at: str
+    created_at: datetime
 
 
 class RoomInfoDTO(BaseModel):
